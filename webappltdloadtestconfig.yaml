@@ -1,0 +1,10 @@
+version: v0.1
+testName: webappltdloadtest
+testPlan: DeploymentSlotLoadTest10user.jmx
+description: 'Deployment Slot Load Test 10 user Run'
+engineInstances: 1
+properties:
+  userPropertyFile: peak-load.properties
+failureCriteria: 
+    - avg(response_time_ms) > 100
+    - percentage(error) > 20

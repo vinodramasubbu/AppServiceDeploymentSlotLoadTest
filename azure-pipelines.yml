@@ -1,0 +1,70 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+#trigger:
+#- main
+
+pool:
+  vmImage: windows-latest
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
+steps:
+    - task: NuGetToolInstaller@1
+    - task: NuGetCommand@2
+      inputs:
+        restoreSolution: '$(solution)'
+    - task: VSBuild@1
+      inputs:
+        solution: '$(solution)'
+        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
+        platform: '$(buildPlatform)'
+        configuration: '$(buildConfiguration)'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'drop'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+    #- task: AzureRmWebAppDeployment@4
+    #  inputs:
+    #    ConnectionType: 'AzureRM'
+    #    azureSubscription: 'vinodaris1(9ecc7f6a-cf39-4cbd-b2ca-049ef342b143)'
+    #    appType: 'webApp'
+    #    WebAppName: 'webappltd'
+    #    deployToSlotOrASE: true
+    #    ResourceGroupName: 'DeploymentSlotLoadTestRG'
+    #    SlotName: 'production'
+    #    packageForLinux: '$(System.DefaultWorkingDirectory)/**/*.zip'
+    - task: AzureRmWebAppDeployment@4
+      inputs:
+        ConnectionType: 'AzureRM'
+        azureSubscription: 'vinodaris1(9ecc7f6a-cf39-4cbd-b2ca-049ef342b143)'
+        appType: 'webApp'
+        WebAppName: 'webappltd'
+        deployToSlotOrASE: true
+        ResourceGroupName: 'DeploymentSlotLoadTestRG'
+        SlotName: 'stage'
+        packageForLinux: '$(System.DefaultWorkingDirectory)/**/*.zip'
+    - task: AzureLoadTest@1
+      inputs:
+        azureSubscription: 'vinodaris1(9ecc7f6a-cf39-4cbd-b2ca-049ef342b143)'
+        loadTestConfigFile: 'webappltdloadtestconfig.yaml'
+        resourceGroup: 'DeploymentSlotLoadTestRG'
+        loadTestResource: 'webappltinstance'
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: 'vinodaris1(9ecc7f6a-cf39-4cbd-b2ca-049ef342b143)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: 'az webapp deployment slot swap  -g  DeploymentSlotLoadTestRG -n webappltd --slot stage --target-slot production'
